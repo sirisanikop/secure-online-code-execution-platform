@@ -1,0 +1,12 @@
+# Dependencies and build output (recreated by `npm install` / `npm run build`, see HOW_TO_RUN.md)
+node_modules/
+frontend/dist/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local secrets
+.env
