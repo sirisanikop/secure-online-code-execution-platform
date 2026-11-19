@@ -20,9 +20,11 @@ def audit_events(request: Request, type: str | None = None, date_from: datetime 
     if type:
         q = q.where(AuditEvent.event_type == type)
     if date_from:
-        q = q.where(AuditEvent.created_at >= date_from.replace(tzinfo=date_from.tzinfo or timezone.utc))
+        dt_from = date_from.astimezone(timezone.utc) if date_from.tzinfo else date_from.replace(tzinfo=timezone.utc)
+        q = q.where(AuditEvent.created_at >= dt_from)
     if date_to:
-        q = q.where(AuditEvent.created_at <= date_to.replace(tzinfo=date_to.tzinfo or timezone.utc))
+        dt_to = date_to.astimezone(timezone.utc) if date_to.tzinfo else date_to.replace(tzinfo=timezone.utc)
+        q = q.where(AuditEvent.created_at <= dt_to)
     total = db.scalar(select(func.count()).select_from(q.subquery())) or 0
     items = db.scalars(q.order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(limit).offset(offset)).all()
     audit.log(db, audit.ADMIN_ACCESS, admin.id, "audit-events", client_ip(request))

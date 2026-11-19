@@ -142,3 +142,51 @@ def test_TC_OPS_01_audit_retention_and_query(tmpdir_path):
     with app2.state.session_factory() as db:
         details = {e.detail for e in db.scalars(select(AuditEvent)).all()}
         assert "old" not in details and "fresh" in details
+
+
+def test_TC_OPS_01_configurable_retention_and_security_fields(tmpdir_path, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.config import Settings
+    from app.main import create_app
+
+    # Default retention is 90 days and configurable via AUDIT_RETENTION_DAYS
+    monkeypatch.delenv("AUDIT_RETENTION_DAYS", raising=False)
+    assert Settings().audit_retention_days == 90
+    monkeypatch.setenv("AUDIT_RETENTION_DAYS", "120")
+    assert Settings().audit_retention_days == 120
+
+    db_url = f"sqlite:///{tmpdir_path}/ops_custom.db"
+    st_120 = make_settings(tmpdir_path, database_url=db_url, audit_retention_days=120, rate_limit_runs_per_min=10)
+    app = create_app(st_120)
+    now = datetime.now(timezone.utc)
+    with app.state.session_factory() as db:
+        db.add_all([
+            AuditEvent(event_type=audit.LOGIN_FAILED, detail="age_89d", ip_address="10.0.0.1",
+                       created_at=now - timedelta(days=89)),
+            AuditEvent(event_type=audit.BLOCKED_CODE, detail="age_100d", ip_address="10.0.0.2",
+                       created_at=now - timedelta(days=100)),
+            AuditEvent(event_type=audit.TIMEOUT, detail="age_125d", ip_address="10.0.0.3",
+                       created_at=now - timedelta(days=125)),
+        ])
+        db.commit()
+
+    # Restart with 120-day retention: 89d and 100d kept, 125d purged
+    app_120 = create_app(st_120)
+    with app_120.state.session_factory() as db:
+        details = {e.detail for e in db.scalars(select(AuditEvent)).all()}
+        assert {"age_89d", "age_100d"} <= details and "age_125d" not in details
+
+    # Restart with 90-day retention: 89d kept, 100d purged
+    st_90 = make_settings(tmpdir_path, database_url=db_url, audit_retention_days=90,
+                          admin_username="admin", admin_password="AdminPass1")
+    app_90 = create_app(st_90)
+    with app_90.state.session_factory() as db:
+        details = {e.detail for e in db.scalars(select(AuditEvent)).all()}
+        assert "age_89d" in details and "age_100d" not in details
+
+    # Queryable via admin endpoint with timestamp, user_id, ip_address, and event_type
+    c = TestClient(app_90)
+    tok = c.post("/api/auth/login", json={"username": "admin", "password": "AdminPass1"}).json()["access_token"]
+    items = c.get("/api/admin/audit-events?limit=50", headers={"Authorization": "Bearer " + tok}).json()["items"]
+    ev = next(e for e in items if e["detail"] == "age_89d")
+    assert ev["event_type"] == "LOGIN_FAILED" and ev["ip_address"] == "10.0.0.1" and ev["created_at"]

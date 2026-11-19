@@ -1,4 +1,6 @@
 """TC-HIS-* and TC-ADM-*: history, ownership, administration (CEP-F-030..033, CEP-F-050..052)."""
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import select
 
 from app.models import Execution
@@ -54,6 +56,30 @@ def test_TC_ADM_01_audit_events_filter(client, auth, admin_auth):
     assert {"BLOCKED_CODE", "TIMEOUT", "ADMIN_ACCESS"} <= {e["event_type"] for e in everything["items"]}
     future = client.get("/api/admin/audit-events?from=2999-01-01T00:00:00", headers=admin_auth).json()
     assert future["total"] == 0
+
+
+def test_TC_ADM_01_audit_events_date_range_and_timezone(client, auth, admin_auth):
+    run(client, auth, "import socket")
+    now_utc = datetime.now(timezone.utc)
+    ist = timezone(timedelta(hours=5, minutes=30))
+    window_start = (now_utc - timedelta(minutes=5)).astimezone(ist).isoformat()
+    window_end = (now_utc + timedelta(minutes=5)).astimezone(ist).isoformat()
+    past_end = (now_utc - timedelta(minutes=10)).astimezone(ist).isoformat()
+
+    inside = client.get(
+        "/api/admin/audit-events",
+        params={"type": "BLOCKED_CODE", "from": window_start, "to": window_end},
+        headers=admin_auth,
+    ).json()
+    assert inside["total"] == 1
+    assert inside["items"][0]["event_type"] == "BLOCKED_CODE"
+
+    before = client.get(
+        "/api/admin/audit-events",
+        params={"type": "BLOCKED_CODE", "to": past_end},
+        headers=admin_auth,
+    ).json()
+    assert before["total"] == 0
 
 
 def test_TC_ADM_02_statistics(client, auth, admin_auth):
