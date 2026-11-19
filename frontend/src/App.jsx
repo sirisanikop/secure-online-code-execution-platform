@@ -1,5 +1,6 @@
-import { NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
+import { Link, NavLink, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import { useAuth } from "./AuthContext";
+import Icon from "./components/Icon";
 import AuthPage from "./pages/AuthPage";
 import EditorPage from "./pages/EditorPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -11,17 +12,24 @@ function Shell({ children }) {
   return (
     <>
       <header className="topbar">
-        <strong>CodeBox</strong>
+        <Link to="/" className="brand" aria-label="CodeBox">
+          <span className="brand-mark"><Icon name="terminal" /></span>
+          <span className="brand-text">CodeBox</span>
+        </Link>
         <nav aria-label="Main">
           <NavLink to="/" end>Editor</NavLink>
           <NavLink to="/history">History</NavLink>
           {user.is_admin && <NavLink to="/admin">Admin</NavLink>}
         </nav>
         <span className="spacer" />
-        <span className="muted">{user.username}</span>
-        <button onClick={() => { logout(); nav("/login"); }}>Log out</button>
+        <span className="user-chip">
+          <span className="avatar" aria-hidden="true">{user.username.slice(0, 1)}</span>
+          <span className="user-name">{user.username}</span>
+        </span>
+        <button className="small" onClick={() => { logout(); nav("/login"); }}>Log out</button>
       </header>
       <main className="content">{children}</main>
+      <footer className="footer">CodeBox runs every program in an isolated, time- and memory-limited sandbox.</footer>
     </>
   );
 }

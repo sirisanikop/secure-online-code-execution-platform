@@ -4,6 +4,20 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { api } from "../api";
 import OutputPanel from "../components/OutputPanel";
+import Icon from "../components/Icon";
+
+// Follows the operating-system colour scheme so the code editor matches the rest of the UI.
+function usePrefersDark() {
+  const query = typeof window !== "undefined" && window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+  const [dark, setDark] = useState(!!query?.matches);
+  useEffect(() => {
+    if (!query) return undefined;
+    const on = (e) => setDark(e.matches);
+    query.addEventListener?.("change", on);
+    return () => query.removeEventListener?.("change", on);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  return dark;
+}
 
 const SAMPLE = `name = input("Name? ")\nprint("Hello,", name)\n`;
 
@@ -25,6 +39,7 @@ export function checkUpload(file) {
 
 export default function EditorPage() {
   const loc = useLocation();
+  const dark = usePrefersDark();
   const [code, setCode] = useState(loc.state?.code ?? SAMPLE);
   const [stdin, setStdin] = useState(loc.state?.stdin ?? "Ada");
   const [result, setResult] = useState(null);
@@ -88,26 +103,29 @@ export default function EditorPage() {
   return (
     <div className="editor-page" onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); } }}>
       <div className="toolbar">
-        <h2 data-testid="file-name">{fileName}</h2>
-        <button type="button" onClick={() => fileInput.current?.click()}>Upload file</button>
+        <h2 className="file-chip" data-testid="file-name"><Icon name="file" />{fileName}</h2>
+        <button type="button" className="small" onClick={() => fileInput.current?.click()}><Icon name="upload" />Upload file</button>
         <input ref={fileInput} type="file" accept=".py,text/x-python,text/plain" hidden
                aria-label="Upload Python file" onChange={onFileChosen} />
-        {limits && <span className="muted">Limits: {limits.timeout_seconds} s | {limits.memory_limit_mb} MB | {Math.round(limits.output_limit_bytes / 1024)} KB output</span>}
+        {limits && <span className="limits"><Icon name="gauge" />Limits: {limits.timeout_seconds} s | {limits.memory_limit_mb} MB | {Math.round(limits.output_limit_bytes / 1024)} KB output</span>}
       </div>
-      {uploadError && <div className="form-error" role="alert" data-testid="upload-error">{uploadError}</div>}
+      {uploadError && <div className="form-error" role="alert" data-testid="upload-error"><Icon name="alert" />{uploadError}</div>}
       <div className="split">
-        <div className="editor-box" aria-label="Code editor">
-          <CodeMirror value={code} height="320px" extensions={[python()]} onChange={setCode}
-                      basicSetup={{ lineNumbers: true, foldGutter: false }} aria-label="Python code" />
+        <div className="pane">
+          <div className="pane-head"><span className="dots" aria-hidden="true"><i /><i /><i /></span>Python</div>
+          <div className="editor-box" aria-label="Code editor">
+            <CodeMirror value={code} height="100%" theme={dark ? "dark" : "light"} extensions={[python()]} onChange={setCode}
+                        basicSetup={{ lineNumbers: true, foldGutter: false }} aria-label="Python code" />
+          </div>
         </div>
-        <div className="stdin-box">
+        <div className="pane stdin-box">
           <label htmlFor="stdin">Standard input</label>
           <textarea id="stdin" value={stdin} onChange={(e) => setStdin(e.target.value)} rows={12} spellCheck={false} />
         </div>
       </div>
       <div className="actions">
-        <button className="primary" onClick={run} disabled={running}>{running ? "Running..." : "Run"}</button>
-        <span className="muted">Ctrl+Enter</span>
+        <button className="primary" onClick={run} disabled={running}><Icon name="play" />{running ? "Running..." : "Run"}</button>
+        <span className="hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> to run</span>
       </div>
       {error && <div className="form-error" role="alert">{error}</div>}
       {result?.status === "BLOCKED" && <p className="muted">Blocked code never ran. See the reason below.</p>}
