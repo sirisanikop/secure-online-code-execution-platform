@@ -114,7 +114,7 @@ export default function EditorPage() {
         <div className="pane">
           <div className="pane-head"><span className="dots" aria-hidden="true"><i /><i /><i /></span>Python</div>
           <div className="editor-box" aria-label="Code editor">
-            <CodeMirror value={code} height="340px" theme={dark ? "dark" : "light"} extensions={[python()]} onChange={setCode}
+            <CodeMirror value={code} height="100%" theme={dark ? "dark" : "light"} extensions={[python()]} onChange={setCode}
                         basicSetup={{ lineNumbers: true, foldGutter: false }} aria-label="Python code" />
           </div>
         </div>
