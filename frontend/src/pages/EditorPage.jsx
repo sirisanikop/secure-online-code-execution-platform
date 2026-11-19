@@ -15,7 +15,26 @@ export default function EditorPage() {
   const [error, setError] = useState("");
   const [running, setRunning] = useState(false);
   const [limits, setLimits] = useState(null);
+  const [fileName, setFileName] = useState("main.py");
   const busy = useRef(false);
+  const fileInput = useRef(null);
+
+  // Upload only fills the editor; Run still goes through POST /api/executions,
+  // so sandbox limits and audit logging apply exactly as for typed code.
+  const onFileChosen = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCode(String(reader.result));
+      setFileName(file.name);
+      setResult(null);
+      setError("");
+    };
+    reader.onerror = () => setError(`Could not read ${file.name}.`);
+    reader.readAsText(file);
+  };
 
   useEffect(() => { api.limits().then(setLimits).catch(() => {}); }, []);
 
@@ -38,7 +57,10 @@ export default function EditorPage() {
   return (
     <div className="editor-page" onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); run(); } }}>
       <div className="toolbar">
-        <h2>main.py</h2>
+        <h2 data-testid="file-name">{fileName}</h2>
+        <button type="button" onClick={() => fileInput.current?.click()}>Upload file</button>
+        <input ref={fileInput} type="file" accept=".py,text/x-python,text/plain" hidden
+               aria-label="Upload Python file" onChange={onFileChosen} />
         {limits && <span className="muted">Limits: {limits.timeout_seconds} s | {limits.memory_limit_mb} MB | {Math.round(limits.output_limit_bytes / 1024)} KB output</span>}
       </div>
       <div className="split">
