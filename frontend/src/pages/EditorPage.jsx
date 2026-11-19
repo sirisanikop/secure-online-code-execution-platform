@@ -7,6 +7,22 @@ import OutputPanel from "../components/OutputPanel";
 
 const SAMPLE = `name = input("Name? ")\nprint("Hello,", name)\n`;
 
+// Matches the backend default MAX_CODE_BYTES (backend/app/config.py).
+export const MAX_UPLOAD_BYTES = 51200;
+const ALLOWED_TYPES = ["", "text/plain", "text/x-python", "text/x-python-script", "application/x-python-code"];
+
+// Returns an error message, or "" if the file may be read.
+export function checkUpload(file) {
+  if (!/\.py$/i.test(file.name) || !ALLOWED_TYPES.includes(file.type)) {
+    return `${file.name} is not a Python file. Only .py files can be uploaded.`;
+  }
+  if (file.size === 0) return `${file.name} is empty.`;
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return `${file.name} is ${(file.size / 1024).toFixed(1)} KB; the limit is ${MAX_UPLOAD_BYTES / 1024} KB.`;
+  }
+  return "";
+}
+
 export default function EditorPage() {
   const loc = useLocation();
   const [code, setCode] = useState(loc.state?.code ?? SAMPLE);
@@ -16,6 +32,7 @@ export default function EditorPage() {
   const [running, setRunning] = useState(false);
   const [limits, setLimits] = useState(null);
   const [fileName, setFileName] = useState("main.py");
+  const [uploadError, setUploadError] = useState("");
   const busy = useRef(false);
   const fileInput = useRef(null);
 
@@ -25,15 +42,29 @@ export default function EditorPage() {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
+    setUploadError("");
+    const problem = checkUpload(file);
+    if (problem) { setUploadError(problem); return; } // file is never read
     const reader = new FileReader();
     reader.onload = () => {
-      setCode(String(reader.result));
+      let text;
+      try {
+        text = new TextDecoder("utf-8", { fatal: true }).decode(reader.result);
+      } catch {
+        setUploadError(`${file.name} is not valid UTF-8 text. Save it as UTF-8 and try again.`);
+        return;
+      }
+      if (text.includes("\u0000")) {
+        setUploadError(`${file.name} looks like a binary file, not Python source.`);
+        return;
+      }
+      setCode(text.replace(/^﻿/, ""));
       setFileName(file.name);
       setResult(null);
       setError("");
     };
-    reader.onerror = () => setError(`Could not read ${file.name}.`);
-    reader.readAsText(file);
+    reader.onerror = () => setUploadError(`Could not read ${file.name}.`);
+    reader.readAsArrayBuffer(file);
   };
 
   useEffect(() => { api.limits().then(setLimits).catch(() => {}); }, []);
@@ -63,6 +94,7 @@ export default function EditorPage() {
                aria-label="Upload Python file" onChange={onFileChosen} />
         {limits && <span className="muted">Limits: {limits.timeout_seconds} s | {limits.memory_limit_mb} MB | {Math.round(limits.output_limit_bytes / 1024)} KB output</span>}
       </div>
+      {uploadError && <div className="form-error" role="alert" data-testid="upload-error">{uploadError}</div>}
       <div className="split">
         <div className="editor-box" aria-label="Code editor">
           <CodeMirror value={code} height="320px" extensions={[python()]} onChange={setCode}
