@@ -27,6 +27,16 @@ The purpose of this project is to provide an online interface for code submissio
 - **Frontend:** Provides the user-facing interface.
 - **Testing:** Includes automated tests and sample testing material.
 
+## File Upload
+
+The platform supports uploading Python scripts directly into the web editor:
+- **Usage:** Click the "Upload file" button in the editor toolbar to load a local `.py` file into the editor. The toolbar updates to show the selected filename.
+- **Validation & Constraints:**
+  - Only `.py` files (Python / plain-text MIME types) are accepted.
+  - Maximum file size is **50 KB** (51,200 bytes, matching backend `MAX_CODE_BYTES`).
+  - Files are validated strictly as UTF-8; non-UTF-8, binary (NUL bytes), or empty files are rejected with an inline error message without altering the current editor content.
+- **Security & Execution:** Uploaded scripts execute through the standard sandboxed execution route (`POST /api/executions`), subject to the same time, memory, output, and security restrictions as typed code.
+
 ## Prerequisites
 
 Install the tools and dependencies specified in [`HOW_TO_RUN.md`](HOW_TO_RUN.md). These may include Python and backend packages, Node.js and npm for the frontend, and any additional system dependencies required by the project.
