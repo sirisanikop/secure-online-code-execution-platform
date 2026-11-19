@@ -90,6 +90,42 @@ describe("Editor page", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Run" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Too many runs (retry in 12 s)");
   });
+
+  it("TC-UI-05a valid file upload fills editor and updates filename", async () => {
+    renderAt("/");
+    const input = await screen.findByLabelText("Upload Python file");
+    const editor = screen.getByLabelText("Python code");
+    const file = new File(["print('uploaded code')\n"], "solution.py", { type: "text/x-python" });
+    await userEvent.upload(input, file);
+    await waitFor(() => expect(editor).toHaveValue("print('uploaded code')\n"));
+    expect(screen.getByText("solution.py")).toBeInTheDocument();
+    expect(screen.queryByTestId("upload-error")).toBeNull();
+  });
+
+  it("TC-UI-05b oversized or non-python file shows an error and leaves editor unchanged", async () => {
+    renderAt("/");
+    const input = await screen.findByLabelText("Upload Python file");
+    const editor = screen.getByLabelText("Python code");
+    const initialCode = editor.value;
+
+    // Wrong file type
+    const txtFile = new File(["hello"], "readme.txt", { type: "text/plain" });
+    await userEvent.upload(input, txtFile);
+    expect(await screen.findByTestId("upload-error")).toHaveTextContent("readme.txt is not a Python file");
+    expect(editor).toHaveValue(initialCode);
+
+    // Empty file
+    const emptyFile = new File([], "empty.py", { type: "text/x-python" });
+    await userEvent.upload(input, emptyFile);
+    expect(await screen.findByTestId("upload-error")).toHaveTextContent("empty.py is empty");
+    expect(editor).toHaveValue(initialCode);
+
+    // Oversized file (> 51200 bytes)
+    const bigFile = new File([new Uint8Array(55000)], "large.py", { type: "text/x-python" });
+    await userEvent.upload(input, bigFile);
+    expect(await screen.findByTestId("upload-error")).toHaveTextContent("the limit is 50 KB");
+    expect(editor).toHaveValue(initialCode);
+  });
 });
 
 describe("Auth and history pages", () => {
