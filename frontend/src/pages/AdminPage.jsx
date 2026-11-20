@@ -3,7 +3,7 @@ import { api } from "../api";
 import Icon from "../components/Icon";
 import { formatIST } from "../time";
 
-const TYPES = ["", "LOGIN_FAILED", "LOGIN_THROTTLED", "BLOCKED_CODE", "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT", "RATE_LIMITED", "ADMIN_ACCESS"];
+const TYPES = ["", "LOGIN_FAILED", "LOGIN_THROTTLED", "BLOCKED_CODE", "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT", "RATE_LIMITED", "ADMIN_ACCESS", "EXECUTION"];
 const TONE = { COMPLETED: "ok", RUNTIME_ERROR: "err", BLOCKED: "err", INTERNAL_ERROR: "err", TIMEOUT: "warn", MEMORY_LIMIT: "warn", OUTPUT_LIMIT: "warn" };
 
 export default function AdminPage() {

@@ -57,4 +57,7 @@ class ExecutionService:
                         peak_mem_kb=result.peak_mem_kb, blocked_reason=(result.blocked_reason or None))
         db.add(row)
         db.commit()
+        # Record every stored run against the user who ran it so an administrator can see activity per user.
+        # Only the run id, outcome and duration are logged: never the code, the input or the output.
+        audit.log(db, audit.EXECUTION, user.id, f"run #{row.id} {row.status} {row.runtime_ms} ms", ip)
         return row

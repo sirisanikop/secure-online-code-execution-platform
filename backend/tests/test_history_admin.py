@@ -82,6 +82,32 @@ def test_TC_ADM_01_audit_events_date_range_and_timezone(client, auth, admin_auth
     assert before["total"] == 0
 
 
+def test_TC_ADM_01_every_run_is_audited_under_its_user(make_client):
+    """Successful runs must be visible to the admin under the user who ran them, and never as ADMIN_ACCESS."""
+    c = make_client(rate_limit_runs_per_min=3)
+    user = register_login(c, "alice", "Passw0rd1")
+    admin = register_login(c, "admin", "AdminPass1")
+    ids = [run(c, user, code)["id"] for code in ("print(1)", "1/0", "import socket")]  # completed, error, blocked
+    refused = c.post("/api/executions", json={"code": "print(2)"}, headers=user)  # the 4th run in a minute
+    assert refused.status_code == 429
+    uid = c.get("/api/auth/me", headers=user).json()["id"]
+    aid = c.get("/api/auth/me", headers=admin).json()["id"]
+
+    runs = c.get("/api/admin/audit-events?type=EXECUTION&limit=50", headers=admin).json()
+    assert runs["total"] == 3 and all(e["user_id"] == uid for e in runs["items"])
+    assert {e["detail"].split()[2] for e in runs["items"]} == {"COMPLETED", "RUNTIME_ERROR", "BLOCKED"}
+    assert {int(e["detail"].split()[1].lstrip("#")) for e in runs["items"]} == set(ids)
+    blob = " ".join(e["detail"] for e in runs["items"])
+    assert "print(1)" not in blob and "socket" not in blob  # no source code in the audit trail
+
+    rate = c.get("/api/admin/audit-events?type=RATE_LIMITED", headers=admin).json()  # the refused run is not an EXECUTION
+    assert rate["total"] == 1 and rate["items"][0]["user_id"] == uid
+
+    c.get("/api/admin/stats", headers=admin)
+    views = c.get("/api/admin/audit-events?type=ADMIN_ACCESS&limit=50", headers=admin).json()["items"]
+    assert views and all(e["user_id"] == aid for e in views)  # admin page views belong to the admin only
+
+
 def test_TC_ADM_02_statistics(client, auth, admin_auth):
     run(client, auth, "print(1)")
     run(client, auth, "print(2)")
