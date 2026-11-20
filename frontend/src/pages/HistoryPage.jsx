@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import Icon from "../components/Icon";
+import { formatIST } from "../time";
 import StatusBadge from "../components/StatusBadge";
 import OutputPanel from "../components/OutputPanel";
 
@@ -47,7 +48,7 @@ export default function HistoryPage() {
             <tbody>
               {data.items.map((r) => (
                 <tr key={r.id}>
-                  <td className="when">{new Date(r.created_at).toLocaleString()}</td>
+                  <td className="when">{formatIST(r.created_at)}</td>
                   <td><StatusBadge status={r.status} /></td>
                   <td className="num">{r.runtime_ms} ms</td>
                   <td><code>{r.code_preview.replace(/\n/g, " ")}</code></td>
