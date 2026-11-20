@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import Icon from "../components/Icon";
+import { formatIST } from "../time";
 
 const TYPES = ["", "LOGIN_FAILED", "LOGIN_THROTTLED", "BLOCKED_CODE", "TIMEOUT", "MEMORY_LIMIT", "OUTPUT_LIMIT", "RATE_LIMITED", "ADMIN_ACCESS"];
 const TONE = { COMPLETED: "ok", RUNTIME_ERROR: "err", BLOCKED: "err", INTERNAL_ERROR: "err", TIMEOUT: "warn", MEMORY_LIMIT: "warn", OUTPUT_LIMIT: "warn" };
@@ -46,7 +47,7 @@ export default function AdminPage() {
           <thead><tr><th>Time</th><th>Type</th><th>User</th><th>IP</th><th>Detail</th></tr></thead>
           <tbody>
             {events.items.map((e) => (
-              <tr key={e.id}><td className="when">{new Date(e.created_at).toLocaleString()}</td><td>{e.event_type}</td><td>{e.user_id ?? "-"}</td>
+              <tr key={e.id}><td className="when">{formatIST(e.created_at)}</td><td>{e.event_type}</td><td>{e.user_id ?? "-"}</td>
                 <td className="num">{e.ip_address}</td><td>{e.detail}</td></tr>
             ))}
           </tbody>
